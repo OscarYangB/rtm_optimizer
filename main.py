@@ -4,9 +4,10 @@ from mpi4py import MPI
 import numpy as np
 import ufl
 import pyvista
+from basix.ufl import element
+from dolfinx.plot import vtk_mesh
 
-# TODO: Movable inlet/outlet boundary condition
-# TODO: Solve velocity field from pressure field
+# TODO: Solve volumetric flux field using velocity field and area of each control volume
 # TODO: VOF or FAN method
 # TODO: Anisotropic (non-scalar) K
 
@@ -16,21 +17,21 @@ V = fem.functionspace(domain, ("Lagrange", 1))
 tdim = domain.topology.dim
 fdim = tdim - 1
 
-inlet_position = (0.4, 0.4)
-outlet_position = (0.6, 0.6)
-tube_radius = 0.02
+inlet_position = (0.40, 0.40)
+outlet_position = (0.60, 0.60)
+tube_radius = 0.05
 
 def is_tube_boundary(positions, tube_position, radius):
     return np.where(np.sqrt((positions[0] - tube_position[0]) ** 2 + 
                             (positions[1] - tube_position[1]) ** 2) < radius, True, False)
 
 inlet_pressure = fem.Function(V)
-inlet_pressure.interpolate(lambda x: x[1]*0 + 10)
+inlet_pressure.interpolate(lambda x: x[1]*0 + 10.0)
 dofs_inlet = fem.locate_dofs_geometrical(V, lambda x: is_tube_boundary(x, inlet_position, tube_radius))
 bc_inlet = fem.dirichletbc(inlet_pressure, dofs_inlet)
 
 outlet_pressure = fem.Function(V)
-outlet_pressure.interpolate(lambda x: x[1]*0 + 0)
+outlet_pressure.interpolate(lambda x: x[1]*0 + 0.0)
 dofs_outlet = fem.locate_dofs_geometrical(V, lambda x: is_tube_boundary(x, outlet_position, tube_radius))
 bc_oulet = fem.dirichletbc(outlet_pressure, dofs_outlet)
 
@@ -54,6 +55,12 @@ problem = LinearProblem(
 )
 uh = problem.solve()
 
+W = fem.functionspace(domain, element("Lagrange", domain.basix_cell(), 2, shape=(domain.geometry.dim,)))
+velocity_expression = fem.Expression(-ufl.grad(uh) * k/mu * 10000, W.element.interpolation_points)
+velocity_field = fem.Function(W)
+velocity_field.interpolate(velocity_expression)
+
+
 domain.topology.create_connectivity(tdim, tdim)
 topology, cell_types, geometry = plot.vtk_mesh(domain, tdim)
 grid = pyvista.UnstructuredGrid(topology, cell_types, geometry)
@@ -76,3 +83,31 @@ if u_pieces is not None:
     u_plotter.view_xy()
     if not pyvista.OFF_SCREEN:
         u_plotter.show()
+
+
+
+
+topology, cell_types, geometry = vtk_mesh(W)
+values = np.zeros((geometry.shape[0], 3), dtype=np.float64)
+values[:, : len(velocity_field)] = velocity_field.x.array.real.reshape((geometry.shape[0], len(velocity_field)))
+
+# Create a point cloud of glyphs
+function_grid = pyvista.UnstructuredGrid(topology, cell_types, geometry)
+function_grid["u"] = values
+glyphs = function_grid.glyph(orient="u", factor=0.2)
+
+# Create a pyvista-grid for the mesh
+tdim = domain.topology.dim
+domain.topology.create_connectivity(tdim, tdim)
+grid = pyvista.UnstructuredGrid(*vtk_mesh(domain, tdim))
+
+# Create plotter
+plotter = pyvista.Plotter()
+plotter.add_mesh(grid, style="wireframe", color="k")
+plotter.add_mesh(glyphs)
+plotter.view_xy()
+
+if not pyvista.OFF_SCREEN:
+    plotter.show()
+else:
+    fig_as_array = plotter.screenshot("glyphs.png")
