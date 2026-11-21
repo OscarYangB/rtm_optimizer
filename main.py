@@ -5,26 +5,33 @@ import numpy as np
 import ufl
 import pyvista
 
+# TODO: Movable inlet/outlet boundary condition
+# TODO: Solve velocity field from pressure field
+# TODO: VOF or FAN method
+# TODO: Anisotropic (non-scalar) K
+
 domain = mesh.create_unit_square(MPI.COMM_WORLD, 100, 100, mesh.CellType.triangle)
 V = fem.functionspace(domain, ("Lagrange", 1))
 
-uD = fem.Function(V)
-uD.interpolate(lambda x: 10 * (abs(x[0]-0.5) < 0.2))
 tdim = domain.topology.dim
 fdim = tdim - 1
-domain.topology.create_connectivity(fdim, tdim)
-boundary_facets = mesh.exterior_facet_indices(domain.topology)
-boundary_dofs = fem.locate_dofs_topological(V, fdim, boundary_facets)
-bc = fem.dirichletbc(uD, boundary_dofs)
 
-k=fem.Constant(domain, default_scalar_type(6e-8))
-mu=fem.Constant(domain, default_scalar_type(0.5))
+uD = fem.Function(V)
+uD.interpolate(lambda x: x[1]*0 + 10)
+dofs_L = fem.locate_dofs_geometrical(V, lambda x: np.isclose(x[0], 0.5) * np.isclose(x[1], 0.5))
+bc = fem.dirichletbc(uD, dofs_L)
+
+k = fem.Constant(domain, default_scalar_type(6e-8))
+mu = fem.Constant(domain, default_scalar_type(0.5))
 
 p = ufl.TrialFunction(V)
 v = ufl.TestFunction(V)
-f = fem.Constant(domain, default_scalar_type(0))
 a = -ufl.dot(k/mu * ufl.grad(p), ufl.grad(v)) * ufl.dx
-L = f * v * ufl.dx
+x = ufl.SpatialCoordinate(domain)
+g = fem.Constant(domain, default_scalar_type(0))
+f = fem.Constant(domain, default_scalar_type(0))
+L = f * v * ufl.dx - g * v * ufl.ds
+
 problem = LinearProblem(
     a,
     L,
