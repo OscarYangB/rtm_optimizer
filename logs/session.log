@@ -1,0 +1,510 @@
+================================================================================
+RTM-Optimizer — Session Log
+Raw transcript (full fidelity, auto-saved by Claude Code):
+  ~/.claude/projects/-home-yuchen-codespace-school-SYDE411/210bc658-dc37-491d-8ebd-d00507484226.jsonl
+================================================================================
+
+--------------------------------------------------------------------------------
+[2026-11-25] SESSION 210bc658-dc37-491d-8ebd-d00507484226 — Entry 1
+--------------------------------------------------------------------------------
+USER PROMPT (verbatim):
+You are an AI Agent and you are good at Fluid simulation. Our team are currently trying to reproduce a result we observed from a resin infusion experiment.
+
+We are working on prototype and it have two parts: Part I Complete modeling and validation Part II numerical Method.
+
+We are focusing on Part I right now.
+
+The idea is to create a PDE solver for solving the resin infusion flow. For the first stage, the two important parameter we care about are the velocity front at different time stamp and the fill time for each region.
+
+Our input is a rectanglar shape:
+Length: 342.9 mm
+Width: 241 mm
+
+The Resin we are using are AE2032-30-X
+
+Our inlet are the middle of the shorter edge of the rectangle and the outlet is the middle of the shorter edge of the other rectangle.
+
+The mathmatical model is Showing in the paper and relying on Darcy's law and with the following assumption. 1-s2.0-S1359835X1630327X-main.pdf
+
+I have a skeleton for the code I have in the RTM-Optimizer/main.py
+
+This is very important what ever you do please record all the prompt and session in a .log file for future investigation.
+
+I want you to first convert this to a proper prompt for me to review before i started the investigation
+
+ACTIONS:
+- Read RTM-Optimizer/main.py (dolfinx skeleton: unit square, interior circular
+  inlet/outlet at (0.4,0.4)/(0.6,0.6), steady Laplace solve, k=6e-8, mu=0.5,
+  velocity scaled x10000, TODOs: CV flux, FAN/VOF, anisotropic K).
+- Extracted paper text (Okabe et al., Compos. Part A 92 (2017) 1-9), Sec 2.1:
+  Darcy u=-(K/mu)grad p; div u=0 -> div(K/mu grad p)=0; BCs p(gate)=p0,
+  dp/dn(wall)=0, p(front)=0; FAN + FE/CV fill fraction f^{n+1}=f^n+Q/V dt,
+  dt=min (1-f)V/Q. Paper notes Re~0.02 and race-tracking discrepancy.
+- Noted rtm-moo.zip in SYDE411/ (contains CLAUDE.md, solver/MMS tests) — not
+  unpacked; flagged as open question.
+- Created RTM-Optimizer/PROMPT_PartI_draft.md (structured prompt for review).
+- Created this log.
+
+KEY DECISIONS / FLAGS RAISED:
+- Porosity must divide Darcy velocity for front speed (paper Eq.7 omits phi).
+- Skeleton solves saturated problem, not moving-front filling problem.
+- Missing physical inputs marked [TBD]: thickness, port diameters, vacuum dp,
+  AE2032-30-X viscosity & temperature, fabric/permeability, porosity,
+  experimental data format, definition of "region".
+
+STATUS: Awaiting team review of prompt draft. No solver code changed.
+
+--------------------------------------------------------------------------------
+[2026-11-25] SESSION 210bc658-dc37-491d-8ebd-d00507484226 — Entry 2
+--------------------------------------------------------------------------------
+USER PROMPT (verbatim):
+Can you plot me the 2d plot model with inlet and outlet position for me to double check?
+
+ACTIONS:
+- Created RTM-Optimizer/plot_geometry.py (matplotlib, geometry only, no solver).
+- Output: RTM-Optimizer/figures/geometry_check.png
+  Domain 0<=x<=342.9 mm, 0<=y<=241 mm (x along long edge).
+  Inlet  (gate) = (0.0, 120.5) mm  — midpoint of left short edge.
+  Outlet (vent) = (342.9, 120.5) mm — midpoint of right short edge.
+  Port diameters not drawn to scale (still [TBD]).
+
+STATUS: Awaiting user check of geometry + review of PROMPT_PartI_draft.md.
+
+--------------------------------------------------------------------------------
+[2026-11-25] SESSION 210bc658-dc37-491d-8ebd-d00507484226 — Entry 3
+--------------------------------------------------------------------------------
+USER PROMPT (verbatim):
+Can you add in this prompt the two ways to validate it is to compare the timestamp of the the velocity front with anasys simulation(why not using anasys is because of simulation speed is too slow) and also compare with the experiment video. The other way for validating it is to  "method of manufactured solutions" to check if an FEA solution is correct. I will do the validation myself so you are not going to anything about it. The first milestone we are generating figs only.
+
+NOTE: User had edited PROMPT_PartI_draft.md on disk (removed title/status header); kept their version as base.
+
+ACTIONS (PROMPT_PartI_draft.md):
+- Role: no longer says the agent validates; team validates.
+- Removed former Tasks 6 (verification), 7 (validation), 8 (sensitivity) and old Deliverables.
+- Added "Validation plan (done by our team, not by you)":
+  (1) flow-front timestamps vs ANSYS (reference only; too slow for later optimisation) and vs experiment video;
+  (2) Method of Manufactured Solutions for the FEA pressure solve.
+  Agent support only: consistent time origin (t=0 at gate entry, seconds) and a pressure-solve
+  function accepting source term f + BC data so team can plug in MMS. No MMS test written by agent.
+- Added "Milestone 1 deliverables (figures only)": geometry/mesh, pressure snapshots, front
+  contours at times, centreline front position/velocity vs time, fill-time map, per-region fill times.
+- Working rule added: stay in Milestone 1 scope, no validation.
+
+STATUS: Awaiting team review of updated prompt.
+
+--------------------------------------------------------------------------------
+[2026-11-25] SESSION 210bc658-dc37-491d-8ebd-d00507484226 — Entry 4
+--------------------------------------------------------------------------------
+USER PROMPT (verbatim, with Goal items 1-2 selected in the editor):
+so we are going to sketch lines for the velocity front and then color code with timescale to show how the velcoity front progress.
+
+ACTIONS (PROMPT_PartI_draft.md):
+- Goal 1 rewritten: flow front drawn as isochrone lines, one per time stamp, colour-coded by
+  time (continuous colormap + colourbar in s); line spacing shows front speed. Spacing [TBD].
+- Goal 2 rewritten: the same colour-coded plot gives the fill time of each location; removed the
+  "define region" TBD and the N×M grid idea.
+- Milestone 1 figures: the colour-coded isochrone plot is now the main figure (#3). Removed the
+  separate fill-time map and per-region bar chart. Now 4 figures: geometry/mesh, pressure
+  snapshots, colour-coded front lines, centreline position/velocity vs time.
+
+STATUS: Awaiting team review.
+
+--------------------------------------------------------------------------------
+[2026-11-25] SESSION 210bc658-dc37-491d-8ebd-d00507484226 — Entry 5
+--------------------------------------------------------------------------------
+USER PROMPT (verbatim, with "[TBD: spacing]" selected):
+In our actual simulation is 20 min for the whole exiperiment. so we the timestamp maybe 1 min fper isochrones. and you do not need to deal with the experiment data at all. I will take care of it
+
+ACTIONS (PROMPT_PartI_draft.md):
+- Goal 1: isochrone interval = 60 s (config param isochrone_interval_s = 60); experiment fill
+  ~20 min, so ~20 lines expected; the line count follows the solver's own fill time (not hard-coded).
+  Removed "[TBD: spacing]" and the experiment-timestamp lines.
+- Setup table, "Experimental data" row: now "not your concern"; ~20 min fill noted for reference
+  only; no loading, processing or tuning to experiment data.
+- Working rule added: do not touch experiment data (team owns it).
+
+STATUS: Awaiting team review.
+
+--------------------------------------------------------------------------------
+[2026-11-25] SESSION 210bc658-dc37-491d-8ebd-d00507484226 — Entry 6
+--------------------------------------------------------------------------------
+USER PROMPT (verbatim, with the "Driving pressure" row selected):
+Assume the resin is 1atm and the outlet is vaccum side is 0 pressure and it's a air and resin mixture at the velocity front. Note that the vaccum pump aren't super great we are trying to -85 KPa and it's room temperature infusion
+
+NOTE: User had edited the draft on disk (removed TBD from assumption 2); used their version as base.
+
+ACTIONS (PROMPT_PartI_draft.md):
+- BCs: inlet p = 1 atm = 101,325 Pa abs; p = p_vent at the flow front and the outlet (air evacuated).
+- Assumption 5: front = air/resin mixture, i.e. the FAN partially filled CVs (0<f<1), about one element
+  wide; air not compressed or trapped; p = p_vent on partial and empty nodes.
+- Driving pressure: p_vent is a config parameter with two cases.
+  Baseline (realistic) = -85 kPa gauge -> p_vent ~ 16,325 Pa abs, dp ~ 85 kPa.
+  Ideal bound = 0 Pa abs, dp ~ 101.3 kPa.
+  Linear problem -> same front shapes; times scale by ~1.19. Figures use the baseline; the ideal
+  fill time is reported alongside.
+- Resin: room-temperature infusion, nominal 23 C; mu at room temperature still TBD; constant mu,
+  no cure over ~20 min.
+
+DECISION FLAGGED TO USER: the -85 kPa case was chosen as the baseline (user said "0 pressure", then
+noted the pump only reaches -85 kPa). Easy to flip.
+
+STATUS: Awaiting team review.
+
+--------------------------------------------------------------------------------
+[2026-11-25] SESSION 210bc658-dc37-491d-8ebd-d00507484226 — Entry 7
+--------------------------------------------------------------------------------
+USER PROMPT (verbatim):
+[image: PR2032 product specification table] This is the resin properity and we are using 14k carbon fibre
+Attachment saved: logs/attachments/2026-11-25_PR2032_datasheet.png
+  Datasheet (PR2032): Color Lt. Amber; Viscosity @77F = 1,650 cps; Specific Gravity = 1.15 g/cc;
+  Mix ratio and pot life cells are blank in the screenshot.
+
+ACTIONS (PROMPT_PartI_draft.md):
+- Resin row: mu = 1.65 Pa*s @ 25 C (77 F), rho = 1150 kg/m3; nominal temperature changed 23 C -> 25 C
+  to match the datasheet reference temperature.
+  Caveat added: the datasheet value is for the resin alone; the mixed resin+hardener viscosity is
+  usually lower; [TBD] mixed viscosity, hardener, mix ratio.
+- Reinforcement row: 14k carbon fibre; weave, areal weight and layer count still [TBD] (set phi and K).
+
+NOTES (not in prompt): "14k" is an unusual tow size (3K/6K/12K/24K are standard) - asked user to
+confirm. Order-of-magnitude sanity check: with a 1D line-inlet estimate, phi~0.5, mu=1.65, dp=85 kPa,
+t~20 min -> K ~ 5e-10 m2; a point inlet needs a higher K. Mentioned to user only, NOT used to tune.
+
+STATUS: Awaiting team review; remaining TBDs: K, phi, fabric details, mixed viscosity, port size, thickness.
+
+--------------------------------------------------------------------------------
+[2026-11-25] SESSION 210bc658-dc37-491d-8ebd-d00507484226 — Entry 8
+--------------------------------------------------------------------------------
+USER PROMPT (verbatim, with the mixed-viscosity TBD selected):
+we use 69g of hardner and 228g of resin so approx 1:3
+
+ACTIONS (PROMPT_PartI_draft.md, Resin row):
+- Mix ratio recorded: 228 g resin + 69 g hardener = 100:30.3 by weight (~1:3.3, 23 wt% hardener).
+  This is consistent with the "-30" in AE2032-30-X (30 phr).
+- TBD narrowed to: mixed viscosity at 25 C, or the hardener name and its viscosity.
+- mu = 1.65 Pa*s (resin alone) is kept as the current value.
+
+STATUS: Awaiting team review.
+
+--------------------------------------------------------------------------------
+[2026-11-25] SESSION 210bc658-dc37-491d-8ebd-d00507484226 — Entry 9
+--------------------------------------------------------------------------------
+USER PROMPT (verbatim, with the Reinforcement/Permeability/Porosity rows selected):
+for this we are doing 2 layer of carbon. Do not have information about the premeability for the test can you list this as a limitation in the prompt
+
+ACTIONS (PROMPT_PartI_draft.md):
+- Reinforcement: 14k carbon, 2 layers; weave and areal weight still [TBD].
+- Permeability: not measured -> isotropic placeholder K = 1e-10 m2 (literature range ~1e-11 to 1e-9
+  for woven carbon in VARTM); config parameter; "placeholder K" label on figures.
+- Porosity: formula Vf = n*Aw/(rho_f*h), n = 2, rho_f ~ 1780 kg/m3; placeholder phi = 0.5.
+- NEW section "Known limitations":
+  (1) unknown K - absolute times unreliable (t ~ 1/K); front shapes and t/t_fill are K-independent
+      for isotropic K and constant mu; anisotropy not captured;
+  (2) phi placeholder; (3) mixed viscosity unknown;
+  (4) no race-tracking, preform variability or bag compaction.
+  Every figure must state the K, phi and mu used.
+
+STATUS: Awaiting team review.
+
+--------------------------------------------------------------------------------
+[2026-11-25] SESSION 210bc658-dc37-491d-8ebd-d00507484226 — Entry 10
+--------------------------------------------------------------------------------
+USER PROMPT (verbatim, with the rtm-moo.zip TBD line selected):
+same for porosity and do not reference rtm-moo.zip file
+
+ACTIONS (PROMPT_PartI_draft.md):
+- Porosity row: not measured -> known limitation; placeholder phi = 0.5 (Vf ~0.45-0.55 typical);
+  config parameter; "placeholder phi" label on figures. Removed the Vf-from-areal-weight formula.
+- Known limitations item 2: porosity is unknown (no Vf measurement); fill time scales linearly
+  with phi; front shapes and t/t_fill are unaffected by a uniform phi.
+- Removed the rtm-moo.zip reference; Starting point now says: keep dolfinx, build from main.py.
+- Decision: do not reference or use rtm-moo.zip.
+
+STATUS: Awaiting team review.
+
+--------------------------------------------------------------------------------
+[2026-11-25] SESSION 8168d427-8b8f-4e25-b08d-28e64dfef357 — Entry 11 (Milestone 1 build)
+--------------------------------------------------------------------------------
+USER PROMPT (verbatim):
+Read and follow This PROMPT file
+  (file: PROMPT_PartI_draft.md)
+
+USER PROMPT (verbatim, mid-turn):
+can you check if the inlet is point injection or it's a pipe input. Also can you record the sim run time, this is an important parameter for us to track
+
+ENVIRONMENT:
+- dolfinx is not installed on the host; all runs use Docker image dolfinx/dolfinx:stable
+  (dolfinx 0.11.0, gmsh 4.15.2, scipy 1.17.1). Entry point: ./run.sh -> python3 main.py.
+
+DECISIONS:
+- [TBD] values left as named, labelled placeholders (per the prompt's "needed inputs" rule):
+  gate/vent port diameter 10 mm; gate/vent modelled as semicircular cut-outs (finite-radius
+  pipe port) on the short-edge midpoints; thickness h not needed (2D, per unit thickness).
+- FAN: P1 median-dual CVs; Q_i = -(A p')_i from the assembled stiffness (conservative CV flux);
+  pore volume phi*|CV_i|; dt = min (1-f)Vp/Q (one CV per step, ties fill together);
+  pressure re-solved on the filled nodes each step (scipy spsolve), front/empty/vent = p_vent.
+- Ideal-vacuum fill time = baseline * dp_base/dp_ideal (exact: linear problem, fixed geometry).
+- Isochrone count follows solver fill time (60 s interval): 181 lines with placeholder K.
+- Original skeleton kept at legacy/main_skeleton.py; main.py is now the entry point.
+- No validation/MMS/experiment data touched. solve_pressure(msh, K, mu, dirichlet, f, neumann,
+  facet_tags) in rtm/pressure.py is the hook for the team's MMS.
+
+FILES:
+- NEW rtm/config.py, rtm/geometry.py, rtm/pressure.py, rtm/fan.py, rtm/plotting.py, run.sh
+- REPLACED main.py (backup legacy/main_skeleton.py)
+- OUTPUT figures/fig1_geometry_mesh.png, fig2_pressure_stages.png, fig3_isochrones.png,
+  fig4_centreline_front.png; outputs/node_fill_times.csv, centreline_front.csv, summary.json,
+  run_history.csv (one row per run, incl. wall-clock run time per stage).
+
+RESULTS (placeholder K = 1e-10 m2, phi = 0.5, mu = 1.65 Pa s, dp = 85 kPa, port 10 mm):
+- Mesh 7186 nodes / 14002 triangles; 7165 FAN steps.
+- Fill time baseline 10910 s (181.8 min); ideal vacuum 9152 s (152.5 min).
+  ~9x slower than the ~20 min experiment -> consistent with unmeasured K / mixed mu (t ~ mu*phi/K).
+- Re (fibre d = 7 um) = 4.0e-5, Re(sqrt K) = 5.7e-5 -> Darcy assumption holds.
+- Sim run time: total 147 s (mesh 0.5, assembly 0.9, FAN 141.9, plots 2.5 s; 19.8 ms/step).
+
+STATUS: Milestone 1 figures delivered; awaiting team review and the [TBD] inputs.
+
+--------------------------------------------------------------------------------
+[2026-11-25] SESSION 8168d427-8b8f-4e25-b08d-28e64dfef357 — Entry 12 (two-region K what-if)
+--------------------------------------------------------------------------------
+USER PROMPT (verbatim):
+Right now the simulation is symmetry since we assume it's having the same Permeability across the pipe. Now if you generate another experiment that the top and the buttom have different Permeability can you plot the output again?
+
+DECISIONS:
+- New HYPOTHETICAL case "two_region" (not measured; relaxes assumption A3): isotropic
+  K_top = 1e-10 m2 (y > W/2, = baseline placeholder), K_bottom = 3e-10 m2 (y < W/2, 3x).
+  Values are config fields (RTMConfig.K_top / K_bottom), labelled "HYPOTHETICAL" on figures.
+- Mesh split along y = W/2 (gate arc -> vent arc) so the K jump lies on element edges;
+  K is a DG0 cell field. The P1 median-dual flux stays conservative with piecewise-constant K.
+- Baseline outputs untouched; the case writes to figures/two_region_K/ and outputs/two_region_K/.
+- New figs for this case: fig5 (front position/speed along y = W/4, W/2, 3W/4),
+  fig6 (10-min isochrones overlaid on the uniform-K baseline).
+- run_history.csv: now shared at outputs/, with new "case", K_top and K_bottom columns
+  (existing rows kept; header migrated).
+
+FILES: rtm/config.py, rtm/geometry.py (returns cell tags; optional split), rtm/plotting.py
+  (interface overlay, fig_lanes, fig_compare, centreline_front(y=...)), main.py (--case CLI,
+  permeability(), append_history()).
+
+RESULTS:
+- two_region: 7225 nodes, 7204 steps; fill 6550 s (109.2 min); ideal vacuum 5494 s (91.6 min).
+  Bottom line (y = 60 mm) reaches the vent end at 4576 s; top line (y = 181 mm) at 6034 s.
+  Last region to fill: top-right corner near the vent. Re = 1.3e-4.
+  Run time 154 s total (FAN 147 s, 20.4 ms/step).
+- Baseline re-run after the refactor: unchanged, 10909.7 s; run time 150 s.
+
+STATUS: Delivered; awaiting the team's choice of a K ratio and split line, if they want different ones.
+
+--------------------------------------------------------------------------------
+[2026-11-25] SESSION 8168d427-8b8f-4e25-b08d-28e64dfef357 — Entry 13 (restructure + generic skills)
+--------------------------------------------------------------------------------
+USER PROMPT (verbatim):
+Now Can you rename this RTM-Optimizer/PROMPT_PartI_draft.md into a prompt folder and then rename to milestone1_skills.md
+
+and I want you to clean up the output folder naming, Every experiment need to follow the naming convention experiment_#_short_description. and move plot_geometry to utils folder. Make this change and create a generic skills that will be reused for all the prompt including like logging the prompt and recording the whole runtime and also naming convention
+
+USER PROMPT (verbatim, mid-turn):
+Also can you make the total solver run time and make this a seperate log for performance analysis and include the unit for it thanks
+
+DECISIONS:
+- One folder per experiment: outputs/experiment_<#>_<short_description>/{figures,data}/.
+  The old top-level figures/ folder and outputs/two_region_K/ were removed after both
+  experiments were regenerated under the new names.
+- Renamed: baseline -> experiment_1_uniform_K; two_region -> experiment_2_two_region_K.
+  Names are validated by EXPERIMENT_RE (rtm/config.py); registered in EXPERIMENTS (main.py).
+- CLI: ./run.sh [--experiment N | --experiment <full name> | --all]
+- "Total solver time" = assembly + FAN loop (all pressure solves); excludes mesh and plotting.
+- Separate PERFORMANCE log: outputs/performance_log.csv, with units in every header
+  (mesh_time [s], assembly_time [s], fan_solve_time [s], solver_total_time [s], plotting_time [s],
+  total_run_time [s], time_per_fan_step [ms]). outputs/run_history.csv now holds results and
+  params only, with units in the headers. The five earlier runs were migrated into both files.
+
+FILES:
+- MOVED PROMPT_PartI_draft.md -> prompt/milestone1_skills.md (+ link to generic_skills.md;
+  figures path and logging rule updated)
+- MOVED plot_geometry.py -> utils/plot_geometry.py (writes outputs/geometry_check.png)
+- NEW prompt/generic_skills.md (logging, performance log, naming convention, folder layout,
+  how to run, standing rules)
+- CHANGED rtm/config.py (experiment field, figures_dir/data_dir properties, name validation),
+  main.py (EXPERIMENTS registry, --experiment/--all, performance_log.csv)
+
+RESULTS (re-runs under the new names; fill times unchanged):
+- experiment_1_uniform_K: fill 10909.7 s; solver 145.7 s; total 150.4 s
+- experiment_2_two_region_K: fill 6549.6 s; solver 141.0 s; total 147.2 s (19.4 ms/step)
+
+STATUS: Done.
+
+--------------------------------------------------------------------------------
+[2026-11-25] SESSION 8168d427-8b8f-4e25-b08d-28e64dfef357 — Entry 14 (experiment 2: K 2:3)
+--------------------------------------------------------------------------------
+USER PROMPT (verbatim):
+can you change the permeaility to 2 and 3 instead of 1 and 3
+
+DECISIONS:
+- experiment_2_two_region_K changed in place, as asked: K_top 1e-10 -> 2e-10 m^2,
+  K_bottom stays 3e-10 m^2 (ratio 1:3 -> 2:3). Still HYPOTHETICAL. Same name and number;
+  the earlier 1:3 runs stay recorded in run_history.csv (K columns) and in Entries 12-13.
+- The fig6 reference (experiment_1, uniform K = 1e-10 m^2) is unchanged.
+
+FILES: main.py (EXPERIMENTS entry + comment); regenerated outputs/experiment_2_two_region_K/.
+
+RESULTS (K_top = 2e-10, K_bottom = 3e-10 m^2):
+- Fill time 4581.5 s (76.4 min); ideal vacuum 3843.4 s (64.1 min).
+  (Was 6549.6 s with 1:3; uniform 1e-10 baseline is 10909.7 s.)
+- Vent-end arrival (x ~ 335-343 mm): bottom (y = 60 mm) ~4069 s, centreline 4133 s,
+  top (y = 181 mm) ~4485 s. Last node to fill: top-right corner (342.9, 241) mm at 4581.5 s.
+- Run time: solver 148.7 s, total 155.1 s (20.4 ms/step) -> outputs/performance_log.csv
+
+STATUS: Done.
+
+--------------------------------------------------------------------------------
+[2026-11-26] SESSION 8168d427-8b8f-4e25-b08d-28e64dfef357 — Entry 15 (Table-1 K/phi, 4 experiments)
+--------------------------------------------------------------------------------
+USER PROMPTS (verbatim):
+1) I want to understand how does the preamability affect the whole fill time. I think right now the fill time is much more longer than what we observed in the experiment and can you also update the premability and the porosity using the picture provided and rerun the simulation. Right now we should have three experiment. Unform K and two region K(big difference and small difference)
+   (attachment: logs/attachments/2026-11-26_sensitivity_table1_K_phi.png)
+2) can you update the prompt to include the configuration of the experiment thanks
+3) what did you do to make the simulation so much faster? is it just using the new prameter provided
+4) Stop
+
+DECISIONS / ACTIONS:
+- K and phi from the literature Table 1: phi = 0.498; default K = diag(2e-9, 1e-9) m^2 (median pair).
+- Experiments: 1 uniform_K; 2 two_region_K_big_diff (bottom 6e-8/5e-8); 3 two_region_K_small_diff
+  (bottom 6e-9/5e-9); top half = 2e-9/1e-9 in both; 4 K_sweep (uniform, all 5 Table-1 pairs).
+- Old placeholder-K outputs moved to outputs/archive/2026-11-25_placeholder_K/.
+- Answer to 3): the solver is unchanged; fill time scales as phi*mu/(K*dp), so the shorter fill
+  time comes only from the larger K. The computer run time per run (~150 s) does not depend on K.
+- prompt/milestone1_skills.md: K/phi rows updated; new "Experiment configuration" section.
+  prompt/generic_skills.md: rules for the configuration section and for outputs/archive.
+- The ./run.sh --all background run was STOPPED at the user's request (prompt 4); the dolfinx
+  container was stopped. Rows written before the stop are in run_history/performance_log.
+
+STATUS: Stopped by the user. Experiment 4 (sweep) not finished.
+
+--------------------------------------------------------------------------------
+[2026-11-26] SESSION 8168d427-8b8f-4e25-b08d-28e64dfef357 — Entry 16 (2 experiments; experiment_configuration.md)
+--------------------------------------------------------------------------------
+USER PROMPT (verbatim):
+I want to have the following run. First experiment uniform and second is the top and the buttom have 5% difference in permeability store all the configuration in the Prompt and create a new file called experiment configuration. and move all the information in the milestone1_skills that are relavant with the experiment here and generate the new result. Do not archive the old result that will be abandoned
+
+DECISIONS:
+- Experiments now: 1 experiment_1_uniform_K, K = diag(2e-9, 1e-9) m^2;
+  2 experiment_2_two_region_K_5pct_diff, top = diag(2e-9, 1e-9), bottom 5 % higher in
+  both x and y = diag(2.1e-9, 1.05e-9) m^2, split along y = W/2. phi = 0.498, mu = 1.65 Pa s.
+- Abandoned outputs DELETED, not archived (user instruction): outputs/archive/ (placeholder-K
+  runs), experiment_2_two_region_K_big_diff, experiment_3_two_region_K_small_diff,
+  experiment_4_K_sweep (partial). Their numbers stay in run_history.csv, performance_log.csv
+  and Entries 11-15.
+- generic_skills.md updated: config lives in prompt/experiment_configuration.md; abandoned
+  outputs are deleted, not archived; numbers may be reused after an experiment is abandoned.
+- Figure K labels now use 3 significant figures (2.1e-09 was printed as 2e-09).
+- run_sweep() is kept in main.py, unregistered, for future sensitivity studies.
+
+FILES:
+- NEW prompt/experiment_configuration.md (problem definition moved from milestone1_skills.md,
+  shared settings table, experiment table, run/output notes)
+- CHANGED prompt/milestone1_skills.md (problem-definition and experiment-config sections replaced
+  by a pointer), prompt/generic_skills.md, main.py (registry), rtm/config.py, rtm/plotting.py
+- DELETED the output folders listed above
+
+RESULTS:
+- experiment_1_uniform_K: fill 681.2 s (11.35 min); ideal vacuum 571.4 s.
+  Run time: solver 132.8 s, total 136.7 s (18.4 ms/step).
+- experiment_2_two_region_K_5pct_diff: fill 669.0 s (11.15 min, -1.8 %); ideal vacuum 561.3 s.
+  Run time: solver 115.5 s, total 120.4 s (16.0 ms/step).
+
+STATUS: Done.
+
+--------------------------------------------------------------------------------
+[2026-11-26] SESSION 8168d427-8b8f-4e25-b08d-28e64dfef357 — Entry 17 (experiment 2 -> 20 % difference)
+--------------------------------------------------------------------------------
+USER PROMPT (verbatim):
+Can you change the difference to be 20%
+
+DECISIONS:
+- Experiment 2 is now experiment_2_two_region_K_20pct_diff: top = diag(2e-9, 1e-9),
+  bottom 20 % higher in both x and y = diag(2.4e-9, 1.2e-9) m^2 (same direction as before).
+- Abandoned outputs/experiment_2_two_region_K_5pct_diff DELETED, not archived (generic rule);
+  its results stay in Entry 16, run_history.csv and performance_log.csv.
+- Experiment 1 unchanged, so not re-run.
+
+FILES: main.py (registry), prompt/experiment_configuration.md (experiment table);
+  regenerated outputs/experiment_2_two_region_K_20pct_diff/.
+
+RESULTS:
+- Fill 635.9 s (10.60 min), 6.6 % faster than uniform (681.2 s); ideal vacuum 533.4 s.
+- Vent-end arrival: bottom (y = 60 mm) ~594 s, top (y = 181 mm) ~625 s (31 s gap; it was 9 s at 5 %).
+  Last node to fill: top-right corner (342.9, 241) mm.
+- Run time: solver 136.0 s, total 141.5 s (18.75 ms/step).
+
+STATUS: Done.
+
+--------------------------------------------------------------------------------
+[2026-11-26] SESSION 8168d427-8b8f-4e25-b08d-28e64dfef357 — Entry 18 (experiment 3: 50 % difference)
+--------------------------------------------------------------------------------
+USER PROMPT (verbatim):
+can you make the third experiment for 50% difference
+
+DECISIONS:
+- New experiment_3_two_region_K_50pct_diff: top = diag(2e-9, 1e-9), bottom 50 % higher in both
+  x and y = diag(3.0e-9, 1.5e-9) m^2, split along y = W/2 (same direction as experiment 2).
+- Experiments 1 and 2 unchanged, so not re-run.
+
+FILES: main.py (registry), prompt/experiment_configuration.md (new table row; figure and run
+  notes now cover experiments 2 and 3); new outputs/experiment_3_two_region_K_50pct_diff/.
+
+RESULTS:
+- Fill 581.5 s (9.69 min), 14.6 % faster than uniform (681.2 s); ideal vacuum 487.8 s.
+- Run time: solver 133.6 s, total 138.9 s (18.43 ms/step).
+
+STATUS: Done.
+  Addendum (Entry 18): vent-end arrival, bottom (y = 60 mm) ~498 s, top (y = 181 mm) ~562 s
+  (64 s gap). Last node to fill: top-right corner (342.9, 241) mm at 581.5 s.
+
+--------------------------------------------------------------------------------
+[2026-11-26] SESSION 8168d427-8b8f-4e25-b08d-28e64dfef357 — Entry 19 (experiment 3 redefined: top Kx = half of bottom)
+--------------------------------------------------------------------------------
+USER PROMPT (verbatim; the first attempt was interrupted):
+the last experiment the top is half of the buttom of the premeabiliyt
+the last experiment the top is half of the buttom of the premeability but the y axis premeability is similiar
+
+DECISIONS:
+- Read as a correction to experiment 3 (not a new experiment 4).
+- experiment_3_two_region_Kx_top_half: top = diag(2e-9, 1e-9) (reference),
+  bottom = diag(4e-9, 1e-9) m^2, so top Kx is half of bottom Kx and Ky is the same (1e-9).
+  The top was kept at the reference value, as in experiment 2.
+- Abandoned outputs/experiment_3_two_region_K_50pct_diff DELETED (its results stay in Entry 18).
+
+FILES: main.py (registry), prompt/experiment_configuration.md (experiment 3 row);
+  new outputs/experiment_3_two_region_Kx_top_half/.
+
+RESULTS:
+- Fill 572.5 s (9.54 min), 16.0 % faster than uniform (681.2 s); ideal vacuum 480.3 s.
+- Vent-end arrival: bottom (y = 60 mm) ~476 s, top (y = 181 mm) ~551 s (75 s gap).
+  Last node to fill: top-right corner (342.9, 241) mm.
+- Run time: solver 134.8 s, total 139.9 s (18.58 ms/step).
+
+STATUS: Done; interpretation stated to the user for confirmation.
+
+--------------------------------------------------------------------------------
+[2026-11-26] SESSION 8168d427-8b8f-4e25-b08d-28e64dfef357 — Entry 20 (experiment 3 -> 100 % difference in x and y)
+--------------------------------------------------------------------------------
+USER PROMPT (verbatim):
+can you change it to be 100% diff in all dir
+
+DECISIONS:
+- experiment_3_two_region_K_100pct_diff: top = diag(2e-9, 1e-9) (reference),
+  bottom = 2 x top in both x and y = diag(4e-9, 2e-9) m^2. Split along y = W/2.
+- Abandoned outputs/experiment_3_two_region_Kx_top_half DELETED (its results stay in Entry 19).
+
+FILES: main.py (registry), prompt/experiment_configuration.md (experiment 3 row);
+  new outputs/experiment_3_two_region_K_100pct_diff/.
+
+RESULTS:
+- Fill 515.1 s (8.58 min), 24.4 % faster than uniform (681.2 s); ideal vacuum 432.1 s.
+- Vent-end arrival: bottom (y = 60 mm) ~391 s, top (y = 181 mm) ~485 s (94 s gap).
+  Last node to fill: top-right corner (342.9, 241) mm.
+- Run time: solver 132.8 s, total 137.9 s (18.31 ms/step).
+
+STATUS: Done.
